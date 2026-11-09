@@ -1,0 +1,49 @@
+{
+  "name": "@nemaya/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nemaya commerce backend (Medusa v2).",
+  "scripts": {
+    "build": "medusa build",
+    "dev": "medusa develop",
+    "start": "medusa start",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "medusa db:migrate",
+    "seed": "medusa exec ./src/scripts/seed.ts",
+    "bootstrap": "medusa exec ./src/scripts/bootstrap.ts",
+    "vapid": "node -e \"const k=require('web-push').generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey+'\\nVAPID_PRIVATE_KEY='+k.privateKey)\""
+  },
+  "dependencies": {
+    "@medusajs/admin-sdk": "2.22.4",
+    "@medusajs/cli": "2.22.4",
+    "@medusajs/framework": "2.22.4",
+    "@medusajs/medusa": "2.22.4",
+    "@medusajs/ui": "4.2.11",
+    "@medusajs/icons": "2.22.4",
+    "@nemaya/avatars": "workspace:*",
+    "jsonwebtoken": "9.0.3",
+    "nodemailer": "10.4.0",
+    "web-push": "4.0.0",
+    "@nemaya/demo-catalog": "workspace:*"
+  },
+  "devDependencies": {
+    "@medusajs/test-utils": "2.22.4",
+    "@swc/core": "1.16.22",
+    "@types/jsonwebtoken": "9.0.10",
+    "@types/node": "^22.10.0",
+    "@types/nodemailer": "8.0.2",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.2.25",
+    "@types/web-push": "3.6.4",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ts-node": "^10.9.2",
+    "typescript": "5.9.3",
+    "vite": "^5.4.14",
+    "yalc": "^1.0.0-pre.53"
+  },
+  "engines": {
+    "node": ">=22.22.0"
+  }
+}
