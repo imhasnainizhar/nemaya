@@ -1,0 +1,9 @@
+{
+  "name": "@nemaya/demo-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Demo products + original garment illustrations shared by the Medusa seed and the storefront mock mode.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts"]
+}

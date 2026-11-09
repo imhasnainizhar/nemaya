@@ -1,0 +1,12 @@
+{
+  "name": "@nemaya/avatars",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fixed set of organic SVG avatars shared by backend, storefront and mobile.",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": ["index.js", "index.d.ts"],
+  "scripts": {
+    "export": "node export-svgs.js"
+  }
+}
