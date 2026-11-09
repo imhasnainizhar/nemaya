@@ -1,0 +1,4 @@
+{$API_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy server:9000
+}

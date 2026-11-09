@@ -1,0 +1,124 @@
+# Local development stack — `pnpm docker:dev`
+#   Storefront  http://localhost:8000
+#   API/Admin   http://localhost:9000/app
+#   Mailpit     http://localhost:8025   (every email the app sends)
+#   S3 console  http://localhost:9101   (RustFS, user/pass from .env.docker)
+name: nemaya
+
+x-node: &node
+  build:
+    context: .
+    dockerfile: docker/dev.Dockerfile
+  image: nemaya-dev:latest
+  working_dir: /workspace
+  env_file: .env.docker
+  volumes:
+    - .:/workspace
+    - node_modules:/workspace/node_modules
+    - backend_node_modules:/workspace/apps/backend/node_modules
+    - storefront_node_modules:/workspace/apps/storefront/node_modules
+    - avatars_node_modules:/workspace/packages/avatars/node_modules
+    - pnpm_store:/pnpm-store
+    - shared:/shared
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nemaya}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nemaya}
+      POSTGRES_DB: ${POSTGRES_DB:-nemaya}
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nemaya}"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  # S3-compatible storage (RustFS, MinIO-compatible) — stands in for Cloudflare R2 locally
+  s3:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-nemaya}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-nemaya-secret}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+    ports: ["9100:9000", "9101:9001"]
+    volumes: [s3data:/data]
+
+  # creates the public-read media bucket (idempotent)
+  s3-init:
+    image: amazon/aws-cli:latest
+    depends_on: [s3]
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-nemaya}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-nemaya-secret}
+      AWS_DEFAULT_REGION: us-east-1
+      BUCKET: ${S3_BUCKET:-nemaya-media}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 30); do aws --endpoint-url http://s3:9000 s3api list-buckets >/dev/null 2>&1 && break; sleep 2; done
+        aws --endpoint-url http://s3:9000 s3api head-bucket --bucket "$$BUCKET" 2>/dev/null || aws --endpoint-url http://s3:9000 s3api create-bucket --bucket "$$BUCKET"
+        aws --endpoint-url http://s3:9000 s3api put-bucket-policy --bucket "$$BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$BUCKET/*\"]}]}"
+        echo "bucket $$BUCKET ready"
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["8025:8025", "1025:1025"]
+
+  # installs workspace deps into named volumes (fast on Windows/macOS)
+  deps:
+    <<: *node
+    command: sh -c "pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile"
+    restart: "no"
+
+  backend:
+    <<: *node
+    command: sh scripts/docker/backend-dev.sh
+    ports: ["9000:9000"]
+    depends_on:
+      deps: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      s3-init: { condition: service_completed_successfully }
+      mailpit: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
+      interval: 10s
+      retries: 60
+      start_period: 60s
+
+  storefront:
+    <<: *node
+    command: sh scripts/docker/storefront-dev.sh
+    ports: ["8000:8000"]
+    environment:
+      # server-side calls go over the docker network
+      MEDUSA_BACKEND_URL: http://backend:9000
+    depends_on:
+      deps: { condition: service_completed_successfully }
+      backend: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:
+  s3data:
+  node_modules:
+  backend_node_modules:
+  storefront_node_modules:
+  avatars_node_modules:
+  pnpm_store:
+  shared:

@@ -1,0 +1,61 @@
+# Production Medusa stack (AWS EC2/Lightsail or any Docker host).
+# Postgres = Neon (managed), Redis = separate instance (deploy/redis), media = Cloudflare R2.
+#
+#   cp .env.production.example .env.production   # fill in
+#   docker compose run --rm migrate              # first deploy + every release
+#   docker compose up -d server worker
+#   docker compose --profile proxy up -d caddy   # optional: automatic HTTPS
+name: nemaya-medusa
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:-ghcr.io/your-github-user/nemaya-backend:latest}
+  env_file: .env.production
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  # one-off: migrations + idempotent bootstrap (admin user, optional demo seed)
+  migrate:
+    <<: *backend
+    command: ["migrate"]
+    restart: "no"
+    profiles: ["tools"]
+    environment:
+      MEDUSA_WORKER_MODE: server
+
+  server:
+    <<: *backend
+    environment:
+      MEDUSA_WORKER_MODE: server
+    ports: ["${API_BIND:-127.0.0.1}:9000:9000"]
+    deploy:
+      resources:
+        limits: { memory: 768m }
+
+  worker:
+    <<: *backend
+    environment:
+      MEDUSA_WORKER_MODE: worker
+    deploy:
+      resources:
+        limits: { memory: 640m }
+
+  # Optional TLS reverse proxy. Set API_DOMAIN in .env.production and point DNS at this host.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["proxy"]
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-api.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [server]
+
+volumes:
+  caddy_data:
+  caddy_config:

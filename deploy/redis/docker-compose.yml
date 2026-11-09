@@ -1,0 +1,34 @@
+# Redis on its own instance (event bus, workflow engine, locking).
+#   cp .env.example .env && docker compose up -d
+# Only expose 6379 on the private network / security group to the Medusa host.
+name: nemaya-redis
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      - --appendonly
+      - "yes"
+      # BullMQ (workflows) needs noeviction
+      - --maxmemory-policy
+      - noeviction
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+    ports: ["${REDIS_BIND:-0.0.0.0}:6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  redisdata:
