@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", ".medusa/server/**", "dist/**"],
+      "env": [
+        "NEXT_PUBLIC_*",
+        "MEDUSA_BACKEND_URL",
+        "MEDUSA_ADMIN_BACKEND_URL",
+        "ADMIN_DISABLED",
+        "REVALIDATE_SECRET"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "lint": {}
+  }
+}

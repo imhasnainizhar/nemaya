@@ -1,0 +1,26 @@
+{
+  "name": "nemaya",
+  "private": true,
+  "description": "Nemaya — organic streetwear store. Medusa v2 backend + Next.js storefront.",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "infra:up": "docker compose up -d postgres redis s3 s3-init mailpit",
+    "infra:down": "docker compose stop postgres redis s3 mailpit",
+    "docker:dev": "node scripts/ensure-env.mjs && docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v",
+    "backend:seed": "pnpm --filter @nemaya/backend seed",
+    "backend:migrate": "pnpm --filter @nemaya/backend db:migrate",
+    "vapid": "pnpm --filter @nemaya/backend vapid"
+  },
+  "devDependencies": {
+    "turbo": "2.11.10"
+  }
+}

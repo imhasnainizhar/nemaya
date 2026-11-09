@@ -1,0 +1,24 @@
+node_modules
+.turbo
+.next
+.medusa
+dist
+build
+coverage
+*.tsbuildinfo
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# env files — only *.example files are committed
+.env
+.env.*
+!.env*.example
+!**/.env*.example
+apps/backend/.env.test
+
+# local uploads / shared dev volume
+uploads
+.docker-shared
+.next-build
